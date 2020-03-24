@@ -1,0 +1,1 @@
+verdi +v2k +incdir+../tb -f ../flist/flist.vc -ssf tb_top.fsdb -sswr dcmi.rc -top tb_top &
