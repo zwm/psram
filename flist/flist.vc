@@ -1,0 +1,10 @@
+../rtl/psram_cfg_parse.v
+../rtl/psram_clk.v
+../rtl/psram_ctrl.v
+../rtl/psram_dma.v
+../rtl/psram_reg.v
+../rtl/psram_rx_buf.v
+../rtl/psram_top.v
+../rtl/psram_trx.v
+../rtl/psram_tx_buf.v
+../rtl/sync.v
