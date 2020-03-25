@@ -17,8 +17,8 @@ module psram_ctrl (
     input   [1:0]           addr_width,
     input   [3:0]           wait_cyc,       // 0 to 15
     input                   data_dir,       // 0: read, 1: write
-    input   [15:0]          data_len,       // max 512 ?
-    input                   data_width,
+    input   [14:0]          data_len,       // max 512 ?
+    input   [1:0]           data_width,
     input                   single_line_io_mode,
     input   [3:0]           sck_div,
     // dma 
@@ -72,7 +72,7 @@ wire [15:0] cnt_max_wait = wait_cyc - 1;
 wire [31:0] shift_reg32_init_wait = 0;
 wire [3:0] out_en_wait = out_en_addr;
 // data
-wire [15:0] cnt_max_data = data_len;
+wire [15:0] cnt_max_data = {1'b0, data_len}; // tbd, width???
 wire tx = data_dir;
 wire rx = ~data_dir;
 wire [31:0] shift_reg32_init_tx = tx_data;
@@ -91,7 +91,8 @@ wire [3:0] out_en_rx = data_width == 2'b00 ? (single_line_io_mode ? 4'b0000 : 4'
 wire byte_end = data_width == 2'b00 ? bit_cnt == 3'h7 :
                 data_width == 2'b01 ? bit_cnt == 3'h3 :
                                       bit_cnt == 3'h1 ;
-wire word_end = cnt[1:0] == 2'b11;
+// wire word_end = cnt[1:0] == 2'b11;
+wire word_end = cnt[1:0] == 2'b11 & byte_end; // bugfix, 20200325
 // curr
 always @(posedge clk or negedge rstn)
     if (~rstn)
@@ -180,7 +181,7 @@ always @(posedge clk or negedge rstn)
                     bit_cnt <= 0;
                     shift_reg32 <= shift_reg32_init_cmd;
                     sck_en <= 1;
-                    sck_pause <= 1;
+                    sck_pause <= 0; // 1 -> 0, 20200325
                     ncs <= 0;
                     out_en <= out_en_cmd;
                 end
@@ -307,12 +308,18 @@ always @(posedge clk or negedge rstn)
     end
 
 // output
-assign do = shift_reg32[31:28];
+//assign do = shift_reg32[31:28]};
+assign do = data_width == 2'b00 ? {3'b000, shift_reg32[31:31]} : // no need ??? just falitate simulation
+            data_width == 2'b01 ? {2'b00,  shift_reg32[31:30]} :
+                                  {        shift_reg32[31:28]} ;
 assign do_en = out_en;
 assign rx_vld = (st_curr == RX_DATA) && ((sck_pos == 1 && rx_rdy == 1 && ((word_end == 1) || (byte_end == 1 && cnt == cnt_max_data))) ||
                                          (sck_pause == 1 && rx_rdy == 1));
 assign rx_data = shift_reg32_next_rx;
-assign tx_free = (st_curr == TX_DATA) && (word_end == 1) && (tx_vld == 1);
+assign tx_free = (st_curr == TX_ADDR && sck_neg && cnt == cnt_max_addr && wait_cyc == 0 && tx && tx_vld) ||
+                 (st_curr == WAIT_CYC && sck_neg && cnt == cnt_max_wait && tx && tx_vld) ||
+                 (st_curr == TX_DATA && word_end && tx_vld) ||
+                 (st_curr == TX_DATA && sck_pause && tx_vld); // tbd, 20200325
 assign done = (st_curr == TRANS_END) && (st_next == IDLE);
 // inst sck
 psram_clk u_sck (

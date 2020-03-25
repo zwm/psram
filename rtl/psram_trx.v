@@ -21,7 +21,7 @@ module psram_trx (
     input                       ram_wr_ack,
     output                      ram_rd_req,
     input                       ram_rd_ack,
-    output reg      [16:0]      ram_addr,
+    output reg      [`RAM_WIDTH-1:0]      ram_addr,
     output          [31:0]      ram_wdata,
     input           [31:0]      ram_rdata
 );
@@ -40,7 +40,7 @@ wire    [23:0]      addr;
 wire    [7:0]       cmd;
 // cfg2
 wire    [14:0]      dma_len;
-wire    [16:0]      dma_saddr;
+wire    [`RAM_WIDTH-1:0] dma_saddr;
 // internal signals
 wire start_psram, done_psram;
 wire tx_vld, tx_free; wire [31:0] tx_data;
@@ -143,9 +143,9 @@ psram_rx_buf u_rxbuf (
     .ram_wdata              ( ram_wdata             )
 );
 // ram_addr, hclk domain
-wire tx = ~data_dir;
-wire ram_addr_inc = tx ? (ram_wr_req & ram_wr_ack) : (ram_rd_req & ram_rd_ack);
-wire [16:0] ram_addr_next = (ram_addr == (dma_saddr + dma_len - 1)) ? dma_saddr : (ram_addr + 1);
+wire tx = data_dir;
+wire ram_addr_inc = tx ? (ram_rd_req & ram_rd_ack) : (ram_wr_req & ram_wr_ack); // tbd!!!!
+wire [`RAM_WIDTH-1:0] ram_addr_next = (ram_addr == (dma_saddr + dma_len - 1)) ? dma_saddr : (ram_addr + 1);
 always @(posedge hclk or negedge hrstn)
     if (~hrstn)
         ram_addr <= 0;

@@ -16,7 +16,7 @@ module psram_reg (
     output reg      [7:0]       task_val,
     output reg      [2:0]       task_max,
     input           [7:0]       task_list,
-    output reg      [16:0]      task_table_addr,
+    output reg      [`RAM_WIDTH-1:0]      task_table_addr,
     output reg      [31:0]      task_trig,
     output reg      [7:0]       irq_en,
     output reg      [7:0]       irq_clr,
@@ -28,23 +28,22 @@ always @(posedge clk or negedge rstn)
     if (~rstn) begin
         task_max <= 0;
         dma_en <= 0;
-        task_remove <= 0;
-        task_add <= 0;
-        task_load <= 0;
         task_val <= 0;
     end
     else if (ahb_bus_sel & ahb_bus_wr & (ahb_bus_addr == 0)) begin
         if (ahb_bus_bsel[2]) begin // [23:16]
             task_max <= ahb_bus_wdata[22:20];
             dma_en <= ahb_bus_wdata[19];
-            task_remove <= ahb_bus_wdata[18];
-            task_add <= ahb_bus_wdata[17];
-            task_load <= ahb_bus_wdata[16];
         end
         if (ahb_bus_bsel[1]) begin // [15: 8]
             task_val <= ahb_bus_wdata[15:8];
         end
     end
+always @(*) begin
+    task_remove = ahb_bus_sel & ahb_bus_wr & (ahb_bus_addr == 0) & ahb_bus_bsel[2] & ahb_bus_wdata[18];
+    task_add = ahb_bus_sel & ahb_bus_wr & (ahb_bus_addr == 0) & ahb_bus_bsel[2] & ahb_bus_wdata[17];
+    task_load = ahb_bus_sel & ahb_bus_wr & (ahb_bus_addr == 0) & ahb_bus_bsel[2] & ahb_bus_wdata[16];
+end
 // 1: DMA_TABLE
 always @(posedge clk or negedge rstn)
     if (~rstn) begin
@@ -52,7 +51,7 @@ always @(posedge clk or negedge rstn)
     end
     else if (ahb_bus_sel & ahb_bus_wr & (ahb_bus_addr == 1)) begin
         if (ahb_bus_bsel[2]) begin // [23:16]
-            task_table_addr[16] <= ahb_bus_wdata[16];
+            task_table_addr[`RAM_WIDTH-1:16] <= ahb_bus_wdata[`RAM_WIDTH-1:16];
         end
         if (ahb_bus_bsel[1]) begin // [15: 8]
             task_table_addr[15:8] <= ahb_bus_wdata[15:8];

@@ -8,5 +8,5 @@ vcs +v2k -debug_all +rad -full64 \
 +notimingcheck \
 +nospecify \
 -l sim.log \
--top psram_top \
+-top tb_top \
 -R \

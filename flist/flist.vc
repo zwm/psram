@@ -1,3 +1,4 @@
+../rtl/psram_define.v
 ../rtl/psram_cfg_parse.v
 ../rtl/psram_clk.v
 ../rtl/psram_ctrl.v
@@ -8,3 +9,5 @@
 ../rtl/psram_trx.v
 ../rtl/psram_tx_buf.v
 ../rtl/sync.v
+../tb/mem.v
+../tb/tb_top.v

@@ -15,7 +15,7 @@ module psram_cfg_parse (
     output      [23:0]      addr,
     output      [7:0]       cmd,
     output      [14:0]      dma_len,
-    output      [16:0]      dma_saddr
+    output      [`RAM_WIDTH-1:0] dma_saddr
 );
 
 // cfg0
@@ -32,8 +32,8 @@ assign cmd_width               = cfg0[ 1: 0];
 assign addr                    = cfg1[31: 8];
 assign cmd                     = cfg1[ 7: 0];
 // cfg2
-assign dma_len                 = cfg2[31:17];
-assign dma_saddr               = cfg2[16: 0];
+assign dma_len                 = cfg2[31:`RAM_WIDTH]; // tbd, if RAM WIDTH mt 17
+assign dma_saddr               = cfg2[`RAM_WIDTH-1: 0];
 
 endmodule
 

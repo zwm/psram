@@ -16,7 +16,7 @@ module psram_rx_buf (
 );
 // signals
 reg [31:0] d0, d1;
-reg fill_flag; reg [1:0] fill_flag_dly; wire fill_flag_sync;
+reg fill_flag; reg [2:0] fill_flag_dly;
 reg toggle; reg [2:0] toggle_dly; wire tx_vld;
 
 // psram clock domain
@@ -24,7 +24,7 @@ always @(posedge psram_clk)
     if (fill_flag == 0 && rx_vld == 1)
         d0 <= rx_data;
 always @(posedge psram_clk or negedge psram_rstn)
-    if (psram_rstn)
+    if (~psram_rstn)
         fill_flag <= 0;
     else if (psram_start) // init
         fill_flag <= 0;
@@ -41,11 +41,11 @@ always @(posedge hclk or negedge hrstn)
     else if (start)
         fill_flag_dly <= 0;
     else
-        fill_flag_dly <= {fill_flag_dly[0], fill_flag};
-assign fill_flag_sync = fill_flag_dly[1];
+        fill_flag_dly <= {fill_flag_dly[1:0], fill_flag};
+wire fill_flag_pulse = ~fill_flag_dly[2] & fill_flag_dly[1]; // may have risks!!! ??? tbd
 // 
 always @(posedge psram_clk or negedge psram_rstn)
-    if (psram_rstn)
+    if (~psram_rstn)
         toggle_dly <= 0;
     else
         toggle_dly <= {toggle_dly[1:0], toggle};
@@ -59,7 +59,7 @@ always @(posedge hclk or negedge hrstn)
         ram_wr_req <= 0;
     else if (ram_wr_ack)
         ram_wr_req <= 0;
-    else if (fill_flag_sync)
+    else if (fill_flag_pulse)
         ram_wr_req <= 1;
 assign ram_wdata = d0;
 // toggle

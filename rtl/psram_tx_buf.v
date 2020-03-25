@@ -18,12 +18,23 @@ module psram_tx_buf (
 reg [31:0] d0, d1;
 reg fill_flag; reg [1:0] fill_flag_dly; wire fill_flag_sync;
 reg toggle; reg [2:0] toggle_dly; wire tx_free_sync;
+reg ram_rd_req_d1, ram_rd_ack_d1;
+always @(posedge hclk or negedge hrstn)
+    if (~hrstn) begin
+        ram_rd_req_d1 <= 0;
+        ram_rd_ack_d1 <= 0;
+    end
+    else begin
+        ram_rd_req_d1 <= ram_rd_req;
+        ram_rd_ack_d1 <= ram_rd_ack;
+    end
 // hclk clock domain
 always @(posedge hclk)
-    if (fill_flag == 0 && ram_rd_req == 1 && ram_rd_ack == 1)
+    //if (fill_flag == 0 && ram_rd_req_d1 == 1 && ram_rd_ack_d1 == 1) // no need fill_flag, bugfix????
+    if (ram_rd_req_d1 == 1 && ram_rd_ack_d1 == 1)
         d0 <= ram_rdata;
 always @(posedge hclk or negedge hrstn)
-    if (hrstn)
+    if (~hrstn)
         fill_flag <= 0;
     else if (start) // init
         fill_flag <= 0;
@@ -34,7 +45,7 @@ always @(posedge hclk or negedge hrstn)
 assign ram_rd_req = ~fill_flag; // may read more data, tbd!!!
 // tx_free, cross domain
 always @(posedge psram_clk or negedge psram_rstn)
-    if (psram_rstn)
+    if (~psram_rstn)
         toggle <= 0;
     else if (tx_free)
         toggle <= ~toggle;

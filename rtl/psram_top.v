@@ -1,3 +1,4 @@
+
 module psram_top (
     // sys
     input                       psram_clk, // 192M ?
@@ -23,7 +24,7 @@ module psram_top (
     input                       ram_wr_ack,
     output                      ram_rd_req,
     input                       ram_rd_ack,
-    output  [31:0]              ram_addr,
+    output  [`RAM_WIDTH-1:0]    ram_addr,
     output  [31:0]              ram_wdata,
     input   [31:0]              ram_rdata,
     // irq
@@ -35,9 +36,9 @@ wire start, done;
 wire [31:0] cfg0, cfg1, cfg2, cfg3;
 wire dma_en, task_load, task_add, task_remove;
 wire [7:0] task_val, task_list, irq_en, irq_clr, irq_status;
-wire [2:0] task_max; wire [31:0] task_trig; wire [16:0] task_table_addr;
-wire dma_rd_req; wire [16:0] dma_addr;
-wire trx_rd_req; wire [16:0] trx_addr;
+wire [2:0] task_max; wire [31:0] task_trig; wire [`RAM_WIDTH-1:0] task_table_addr;
+wire dma_rd_req; wire [`RAM_WIDTH-1:0] dma_addr;
+wire trx_rd_req; wire [`RAM_WIDTH-1:0] trx_addr;
 // ram port mux
 assign ram_rd_req = dma_rd_req | trx_rd_req;
 assign ram_addr = dma_rd_req ? dma_addr : trx_addr;
@@ -75,6 +76,7 @@ psram_dma u_psram_dma (
     .task_remove            ( task_remove            ),
     .task_val               ( task_val               ),
     .task_list              ( task_list              ),
+    .task_max               ( task_max               ),
     .task_table_addr        ( task_table_addr        ),
     .task_trig              ( task_trig              ),
     .irq_en                 ( irq_en                 ),

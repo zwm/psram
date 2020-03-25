@@ -9,7 +9,8 @@ module psram_dma (
     input                   task_remove,
     input       [7:0]       task_val,
     output reg  [7:0]       task_list,
-    input       [16:0]      task_table_addr,
+    input       [2:0]       task_max,
+    input       [`RAM_WIDTH-1:0] task_table_addr,
     input       [31:0]      task_trig,
     input       [7:0]       irq_en,
     input       [7:0]       irq_clr,
@@ -20,25 +21,25 @@ module psram_dma (
     output reg  [31:0]      cfg1,
     output reg  [31:0]      cfg2,
     output reg  [31:0]      cfg3,
-    output                  start,
+    output reg              start,
     input                   done,
     output                  irq,
     // mem 
     output reg              ram_rd_req,
     input                   ram_rd_ack,
-    output reg  [16:0]      ram_addr,
+    output reg  [`RAM_WIDTH-1:0] ram_addr,
     input       [31:0]      ram_rdata
 );
 // Macro
 localparam IDLE             = 4'h0;
 localparam SCAN             = 4'h1;
-localparam RDCFG            = 4'h1;
-localparam TRANS            = 4'h2;
-localparam END              = 4'h3;
+localparam RDCFG            = 4'h2;
+localparam TRANS            = 4'h3;
+localparam END              = 4'h4;
 reg [3:0] st_curr, st_next;
 wire [7:0] task_clr;
 reg [2:0] cnt; reg [1:0] cfg_cnt;
-wire chain_en; wire [16:0] task_chain_addr;
+wire chain_en; wire [`RAM_WIDTH-1:0] task_chain_addr;
 // sync
 always @(posedge clk or negedge rstn)
     if (~rstn)
@@ -84,6 +85,29 @@ always @(*) begin
     // reset
     if (~dma_en) st_next = IDLE;
 end
+// dout, tbd!!! ???
+reg ram_rd_req_d1;
+reg ram_rd_ack_d1;
+always @(posedge clk or negedge rstn)
+    if (~rstn) begin
+        ram_rd_req_d1 <= 0;
+        ram_rd_ack_d1 <= 0;
+    end
+    else begin
+        ram_rd_req_d1 <= ram_rd_req;
+        ram_rd_ack_d1 <= ram_rd_ack;
+    end
+always @(posedge clk or negedge rstn)
+    if (~rstn) begin
+        cfg0 <= 0; cfg1 <= 0; cfg2 <= 0; cfg3 <= 0;
+    end
+    else if (st_curr == SCAN && st_next == RDCFG) begin
+        cfg0 <= 0; cfg1 <= 0; cfg2 <= 0; cfg3 <= 0;
+    end
+    else if (st_curr == RDCFG || st_next == TRANS) begin
+        if (ram_rd_req_d1 & ram_rd_ack_d1)
+            {cfg0, cfg1, cfg2, cfg3} <= {cfg1, cfg2, cfg3, ram_rdata};
+    end
 // behave
 always @(posedge clk or negedge rstn)
     if (~rstn) begin
@@ -91,7 +115,6 @@ always @(posedge clk or negedge rstn)
         cfg_cnt <= 0;
         ram_rd_req <= 0;
         ram_addr <= 0;
-        cfg0 <= 0; cfg1 <= 0; cfg2 <= 0; cfg3 <= 0;
     end
     else begin
         case (st_curr)
@@ -99,25 +122,23 @@ always @(posedge clk or negedge rstn)
                 cnt <= 0;
                 cfg_cnt <= 0;
                 ram_rd_req <= 0;
-                cfg0 <= 0; cfg1 <= 0; cfg2 <= 0; cfg3 <= 0;
             end
             SCAN: begin
                 if (task_list[cnt]) begin
                     ram_rd_req <= 1;
-                    ram_addr <= task_table_addr + {cnt[2:0], 2'b00}; // task entrance port
+                    ram_addr <= task_table_addr + {{(`RAM_WIDTH-5){1'b0}}, cnt[2:0], 2'b00}; // task entrance port, tbd, lsb 2 bits can not set to 0 ???
                 end
                 else begin
-                    cnt <= cnt + 1;
+                    if (cnt == task_max)
+                        cnt <= 0;
+                    else
+                        cnt <= cnt + 1;
                 end
             end
             RDCFG: begin
                 if (ram_rd_ack) begin // latch data
-                    case (cfg_cnt)
-                        2'b00: cfg0 <= ram_rdata;
-                        2'b00: cfg1 <= ram_rdata;
-                        2'b00: cfg2 <= ram_rdata;
-                        default: cfg3 <= ram_rdata;
-                    endcase
+                    cfg_cnt <= cfg_cnt + 1;
+                    ram_addr <= ram_addr + 1; // tbd
                 end
                 if (ram_rd_ack && cfg_cnt == 2'b11) begin
                     ram_rd_req <= 0;
@@ -139,9 +160,14 @@ always @(posedge clk or negedge rstn)
             end
         endcase
     end
+always @(posedge clk or negedge rstn)
+    if (~rstn)
+        start <= 0;
+    else
+        start <= st_curr == TRANS && ram_rd_req_d1 && ram_rd_ack_d1; // tbd, do not start before cfg all out!!!
 // cfg3 parse
 assign chain_en = cfg3[0];
-assign task_chain_addr = cfg3[17:1];
+assign task_chain_addr = cfg3[`RAM_WIDTH:1];
 // task_list & irq
 genvar i;
 generate
